@@ -506,3 +506,7 @@ func (mock *S3Mock) RemoveObjectCalls() []struct {
 	mock.lockRemoveObject.RUnlock()
 	return calls
 }
+
+func (mock *S3Mock) EndpointURL() *url.URL {
+	return &url.URL{}
+}

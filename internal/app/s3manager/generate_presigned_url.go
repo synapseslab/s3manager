@@ -24,22 +24,28 @@ func HandleGenerateURL(s3 S3) http.HandlerFunc {
 			return
 		}
 
-		if parsedExpiry > 7*24*60*60 || parsedExpiry < 1 {
-			handleHTTPError(w, fmt.Errorf("invalid expiry value: %v", parsedExpiry))
-			return
-		}
+		var objectUrl *url.URL
 
-		expiryDuration := time.Duration(parsedExpiry) * time.Second
-		reqParams := make(url.Values)
-		url, err := s3.PresignedGetObject(r.Context(), bucketName, objectName, expiryDuration, reqParams)
-		if err != nil {
-			handleHTTPError(w, fmt.Errorf("error generating url: %w", err))
-			return
+		if parsedExpiry < 1 {
+			objectUrl = s3.EndpointURL().JoinPath(bucketName, objectName)
+		} else {
+			if parsedExpiry > 7*24*60*60 {
+				handleHTTPError(w, fmt.Errorf("invalid expiry value: %v", parsedExpiry))
+				return
+			}
+
+			expiryDuration := time.Duration(parsedExpiry) * time.Second
+			reqParams := make(url.Values)
+			objectUrl, err = s3.PresignedGetObject(r.Context(), bucketName, objectName, expiryDuration, reqParams)
+			if err != nil {
+				handleHTTPError(w, fmt.Errorf("error generating url: %w", err))
+				return
+			}
 		}
 
 		encoder := json.NewEncoder(w)
 		encoder.SetEscapeHTML(false)
-		err = encoder.Encode(map[string]string{"url": url.String()})
+		err = encoder.Encode(map[string]string{"url": objectUrl.String()})
 		if err != nil {
 			handleHTTPError(w, fmt.Errorf("error encoding JSON: %w", err))
 			return

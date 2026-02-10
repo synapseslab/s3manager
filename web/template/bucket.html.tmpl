@@ -178,7 +178,7 @@
                 <h4>Create download link for </h4>
                 <input name="objectName" id="objectName" type="text" readonly>
             </div>
-            <div class="row">
+            <div class="row" id="expiry-inputs-row">
                 <div class="col s4">
                     <div class="input-field">
                         <input name="day" id="gen-link-day" value="0" type="text" pattern="^[\d]+$" class="validate">
@@ -199,6 +199,14 @@
                         <label for="gen-link-minute">Minute</label>
                         <span class="helper-text" data-error="Invalid minute format"></span>
                     </div>
+                </div>
+            </div>
+            <div class="row">
+                <div class="col s12">
+                    <label>
+                        <input type="checkbox" id="no-expiry" name="no-expiry" class="filled-in" />
+                        <span>No expiry</span>
+                    </label>
                 </div>
             </div>
             <div class="row">
@@ -321,11 +329,17 @@ function handleGenerateDownloadLink(event) {
     const objectName = formData.get('objectName');
     const genUrlMessage = document.getElementById('gen-url-error');
 
-    const expiryTime = formData.get('day') * 24 * 60 * 60 + formData.get('hour') * 60 * 60 + formData.get('minute') * 60;
+    let expiryTime = 0;
+    if (formData.get('no-expiry') !== 'on') {
+        expiryTime =
+            formData.get('day') * 24 * 60 * 60 +
+            formData.get('hour') * 60 * 60 +
+            formData.get('minute') * 60;
 
-    if(expiryTime > 7 * 24 * 60 * 60) {
-        genUrlMessage.innerHTML = "Expiry time must be less than 7 days";
-        return;
+        if (expiryTime > 7 * 24 * 60 * 60) {
+            genUrlMessage.innerHTML = "Expiry time must be less than 7 days";
+            return;
+        }
     }
 
     $.ajax({
@@ -342,20 +356,42 @@ function handleGenerateDownloadLink(event) {
 }
 
 function handleCopyLink() {
-    const url = document.getElementById("generated-link").value;
+    const input = document.getElementById("generated-link");
+    const url = input.value;
 
-    if(!!url) {
-        navigator.clipboard.writeText(url).then(function() {
-            M.toast({html: 'Copied to clipboard!'});
-        }, function(err) {
-            console.error('Could not copy:', err);
-        });
+    if (!url) return;
+
+    // Secure context (https / localhost)
+    if (navigator.clipboard && window.isSecureContext) {
+        navigator.clipboard.writeText(url).then(
+            () => M.toast({ html: 'Copied to clipboard!' }),
+            err => console.error('Could not copy:', err)
+        );
+        return;
     }
+
+    // Fallback for http
+    input.removeAttribute("readonly");
+    input.select();
+    input.setSelectionRange(0, url.length);
+    document.execCommand("copy");
+    input.setAttribute("readonly", true);
+
+    M.toast({ html: 'Copied to clipboard!' });
+}
+
+function toggleExpiryInputs() {
+    const checkbox = document.getElementById('no-expiry');
+    const row = document.getElementById('expiry-inputs-row');
+
+    row.style.display = checkbox.checked ? 'none' : 'flex';
 }
 
 window.onload = (event) => {
     $('#change-path-form').submit(handleChangePath)
     $('#download-link-form').submit(handleGenerateDownloadLink)
+
+    document.getElementById('no-expiry').addEventListener('change', toggleExpiryInputs);
 
     uploadFolderInput = $('#upload-folder-input');
     $('#upload-folder-btn').click(event => uploadFolderInput.click());
