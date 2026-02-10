@@ -22,6 +22,10 @@ jobs:
       - name: Checkout repo
         uses: actions/checkout@v6
 
+      - name: Get version
+        id: vars
+        run: echo "sha_short=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
+
       - name: Lint code
         uses: golangci/golangci-lint-action@v9
 
